@@ -79,6 +79,7 @@ Now the data has 31 variables.
 
 ```{r}
 suppressWarnings(library(caret))
+set.seed(123456)
 inTrain = createDataPartition(pm1training$classe, p = 3/4, list = FALSE)
 training <- pm1training[inTrain,]
 validation <- pm1training[-inTrain,]
@@ -88,7 +89,7 @@ validation <- pm1training[-inTrain,]
 Here we use 5-fold Cross Validation, and Random Forrest to fit a model on the training data.
 
 ```{r}
-suppressWarnings(modFit <- train(classe ~ ., data=training, method="rf", trControl=trainControl(method="cv", 5)))
+modFit <- train(classe ~ ., data=training, method="rf", trControl=trainControl(method="cv", 5))
 modFit
 ```
 
@@ -98,7 +99,7 @@ modFit
 pred <- predict(modFit, validation)
 confusionMatrix(pred, validation$classe)$overall[1]
 ```
-The accuracy on the validation data is 0.9922512 which is very high.
+The accuracy on the validation data is 0.99 which is very high.
 
 # Run the model on the testing data
 
