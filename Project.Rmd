@@ -1,0 +1,107 @@
+---
+title: "Practical Machine Learning Project"
+author: "Flora Ye"
+date: "Oct 1, 2017"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+fig_width: 3
+fig_height: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.width=6, fig.height=4)
+```
+
+# Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. 
+
+In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Data
+
+The training data for this project are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data are available here:
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+# Load the data
+
+```{r}
+pm1training <- read.csv("pml-training.csv", na.strings = c("NA", ""))
+pm1testing <- read.csv("pml-testing.csv", na.strings = c("NA", ""))
+dim(pm1training)
+dim(pm1testing)
+```
+Both training data and testing data set has 160 variables.
+
+# Data Cleaning
+## Get rid of the columns that contain ONLY NAs
+
+```{r}
+cols <- colSums(is.na(pm1training)) ==0
+pm1training <- pm1training[, cols ]
+pm1testing <- pm1testing[, cols]
+dim(pm1training)
+dim(pm1testing)
+
+```
+
+Now the training data has 19622 rows and 60 variables, and the testig data has 20 rows and 60 variables. Remove column 1 to 7 which is irrelevant to accelerometer measurements. To reduce the dimension of the data, we will find the correlations of the variables, and remove the variables that are correlated. Also remove the classe (which is a factor) column to find the correlations of the variables.
+```{r}
+data.new <- pm1training[,-c(1:7, ncol(pm1training))]
+```
+
+## Remove highly correlated variables
+
+```{r}
+tmp <- cor(data.new)
+tmp[!lower.tri(tmp)] <- 0
+inCor <- !apply(tmp,2,function(x) any(abs(x) > 0.75))
+data.new <- data.new[,inCor] 
+data.new$classe <- pm1training$classe
+pm1training <- data.new
+```
+
+## Clean the testing data
+
+```{r}
+pm1testing <- pm1testing[,-c(1:7)]
+pm1testing <- pm1testing[, inCor]  
+```
+Now the data has 31 variables.
+
+# Split data into training and validation data
+
+```{r}
+suppressWarnings(library(caret))
+inTrain = createDataPartition(pm1training$classe, p = 3/4, list = FALSE)
+training <- pm1training[inTrain,]
+validation <- pm1training[-inTrain,]
+```
+
+#Fit a model
+Here we use 5-fold Cross Validation, and Random Forrest to fit a model on the training data.
+
+```{r}
+suppressWarnings(modFit <- train(classe ~ ., data=training, method="rf", trControl=trainControl(method="cv", 5)))
+modFit
+```
+
+# Check the accuracy of the model on the validation dat
+
+```{r}
+pred <- predict(modFit, validation)
+confusionMatrix(pred, validation$classe)$overall[1]
+```
+The accuracy on the validation data is 0.9922512 which is very high.
+
+# Run the model on the testing data
+
+```{r}
+predict(modFit, pm1testing)
+```
